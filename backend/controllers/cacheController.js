@@ -48,6 +48,51 @@ export const cacheController = {
       success: true,
       message: 'Cache telemetry counters have been reset to zero'
     });
+  },
+
+  /**
+   * GET /api/cache/debug
+   * Supplementary Problem 2: Expose cache-hit / cache-miss counter via dedicated debug endpoint
+   */
+  getDebug: (req, res) => {
+    const stats = cacheService.getStats();
+    res.status(200).json({
+      debug: true,
+      endpoint: '/api/cache/debug',
+      cacheMetrics: {
+        cacheHits: stats.hits,
+        cacheMisses: stats.misses,
+        totalRequests: stats.totalRequests,
+        hitRatePercentage: `${stats.hitRatePercent}%`,
+        activeKeys: stats.activeKeysCount,
+        allKeysList: stats.keys
+      },
+      configuration: {
+        currentTTLSeconds: stats.stdTTL,
+        checkPeriodSeconds: stats.checkPeriod
+      },
+      invalidations: {
+        totalInvalidations: stats.totalInvalidations,
+        lastInvalidationTime: stats.lastInvalidationTime,
+        lastInvalidatedKeyPrefix: stats.lastInvalidatedKeyPrefix
+      },
+      v8MemoryUsage: stats.nodeCacheInternals,
+      timestamp: new Date().toISOString()
+    });
+  },
+
+  /**
+   * POST /api/cache/ttl
+   * Supplementary Problem 3: Dynamically adjust TTL for experimentation
+   */
+  updateTTL: (req, res) => {
+    const { ttl } = req.body;
+    const newTTL = cacheService.setDefaultTTL(ttl);
+    res.status(200).json({
+      success: true,
+      message: `Default cache TTL updated to ${newTTL} seconds`,
+      currentTTL: newTTL
+    });
   }
 };
 

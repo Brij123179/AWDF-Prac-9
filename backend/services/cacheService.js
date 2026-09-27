@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const defaultTTL = parseInt(process.env.CACHE_TTL_SECONDS, 10) || 60;
+let defaultTTL = parseInt(process.env.CACHE_TTL_SECONDS, 10) || 60;
 const checkPeriod = 120; // purge expired keys every 120 seconds
 
 // Initialize node-cache instance
@@ -159,7 +159,23 @@ export const cacheService = {
       lastInvalidationTime: null,
       lastInvalidatedKeyPrefix: null
     };
-  }
+  },
+
+  /**
+   * Set custom default TTL (Supplementary Problem 3)
+   */
+  setDefaultTTL: (newTTL) => {
+    const parsed = parseInt(newTTL, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      defaultTTL = parsed;
+    }
+    return defaultTTL;
+  },
+
+  /**
+   * Get current default TTL
+   */
+  getDefaultTTL: () => defaultTTL
 };
 
 export default cacheService;

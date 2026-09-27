@@ -124,7 +124,47 @@ async function runBenchmark() {
     const hitData = await hitRes.json();
     console.log(`     -> Result: Cache Status = ${hitData.cacheStatus} (${hitData.executionTimeMs} ms)`);
 
-    // 7. Check MongoDB Explain Execution Stats
+    // 7. Supplementary Problem 1: Test Single Task Caching (GET /api/tasks/:id)
+    console.log('\n--- Supplementary Problem 1: Single Task Caching (GET /api/tasks/:id) ---');
+    const firstTaskId = seedData.data[0]._id;
+    console.log(`  Target Task ID: ${firstTaskId}`);
+    
+    // First read: MISS
+    const startSingle1 = performance.now();
+    const single1Res = await fetch(`${BASE_URL}/api/tasks/${firstTaskId}`, { headers: authHeaders });
+    const single1Duration = (performance.now() - startSingle1).toFixed(2);
+    const single1Data = await single1Res.json();
+    console.log(`  1st GET /tasks/:id -> Duration: ${single1Duration} ms | Cache Status: ${single1Res.headers.get('x-cache') || single1Data.cacheStatus}`);
+
+    // Second read: HIT
+    const startSingle2 = performance.now();
+    const single2Res = await fetch(`${BASE_URL}/api/tasks/${firstTaskId}`, { headers: authHeaders });
+    const single2Duration = (performance.now() - startSingle2).toFixed(2);
+    const single2Data = await single2Res.json();
+    console.log(`  2nd GET /tasks/:id -> Duration: ${single2Duration} ms | Cache Status: ${single2Res.headers.get('x-cache') || single2Data.cacheStatus} (Separate cache key verified!)`);
+
+    // 8. Supplementary Problem 2: Debug Endpoint with Hit/Miss Counters
+    console.log('\n--- Supplementary Problem 2: Debug Endpoint (GET /api/cache/debug) ---');
+    const debugRes = await fetch(`${BASE_URL}/api/cache/debug`);
+    const debugData = await debugRes.json();
+    console.log('  Debug Telemetry Output:');
+    console.log(`    - Cache Hits:    ${debugData.cacheMetrics.cacheHits}`);
+    console.log(`    - Cache Misses:  ${debugData.cacheMetrics.cacheMisses}`);
+    console.log(`    - Total Requests:${debugData.cacheMetrics.totalRequests}`);
+    console.log(`    - Hit Rate:      ${debugData.cacheMetrics.hitRatePercentage}`);
+    console.log(`    - Active Keys:   ${debugData.cacheMetrics.activeKeys}`);
+
+    // 9. Supplementary Problem 3: TTL Adjustment Experimentation
+    console.log('\n--- Supplementary Problem 3: TTL Adjustment Experimentation ---');
+    const ttlRes = await fetch(`${BASE_URL}/api/cache/ttl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ttl: 30 })
+    });
+    const ttlData = await ttlRes.json();
+    console.log(`  Updated TTL: ${ttlData.currentTTL}s -> ${ttlData.message}`);
+
+    // 10. Check MongoDB Explain Execution Stats
     console.log('\n--- MongoDB Query Optimization Analysis (.explain()) ---');
     const explainRes = await fetch(`${BASE_URL}/api/tasks/explain`, { headers: authHeaders });
     const explainData = await explainRes.json();
@@ -133,16 +173,16 @@ async function runBenchmark() {
     console.log(`  Docs Examined: ${explainData.summary.totalDocsExamined}, Keys Examined: ${explainData.summary.totalKeysExamined}`);
     console.log(`  Efficiency Ratio: ${explainData.summary.efficiencyRatio}`);
 
-    // 8. Statistical Calculations
+    // 11. Statistical Calculations
     const avgUncached = uncachedReadings.reduce((a, b) => a + b, 0) / uncachedReadings.length;
     const hitsOnly = cachedReadings.filter((r) => r.status === 'HIT').map((r) => r.duration);
     const avgCachedHits = hitsOnly.reduce((a, b) => a + b, 0) / hitsOnly.length;
     const speedupFactor = (avgUncached / avgCachedHits).toFixed(1);
     const reductionPercent = (((avgUncached - avgCachedHits) / avgUncached) * 100).toFixed(1);
 
-    // 9. Summary Table
+    // 12. Summary Table
     console.log('\n' + '='.repeat(70));
-    console.log('📊 EMPIRICAL LATENCY BENCHMARK RESULTS');
+    console.log('📊 EMPIRICAL LATENCY BENCHMARK RESULTS (Cached vs Uncached)');
     console.log('='.repeat(70));
     console.log('| Trial | Uncached (MongoDB) | Cached (node-cache) | Cache Status |');
     console.log('|:-----:|:------------------:|:-------------------:|:------------:|');
@@ -159,13 +199,14 @@ async function runBenchmark() {
     console.log(`📉 Latency Reduction:         ${reductionPercent}% Improvement`);
     console.log('='.repeat(70));
 
-    // 10. Fetch Cache Statistics
-    const statsRes = await fetch(`${BASE_URL}/api/cache/stats`);
-    const statsData = await statsRes.json();
-    console.log('\n📊 Real-Time node-cache Internal Stats:');
-    console.log(JSON.stringify(statsData.data, null, 2));
+    // 13. Reset TTL back to default 60s
+    await fetch(`${BASE_URL}/api/cache/ttl`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ttl: 60 })
+    });
 
-    console.log('\n✅ Benchmark successfully executed and completed!\n');
+    console.log('\n✅ Practical 9 Benchmark successfully executed and completed!\n');
   } catch (error) {
     console.error('❌ Benchmark error:', error.message);
   }

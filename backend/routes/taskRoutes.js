@@ -21,8 +21,8 @@ router.post('/', validateTaskInput, taskController.createTask);
 // POST /api/tasks/seed - Seed sample tasks (invalidates cache)
 router.post('/seed', taskController.seedTasks);
 
-// GET /api/tasks/:id - Retrieve specific task
-router.get('/:id', taskController.getTaskById);
+// GET /api/tasks/:id - Supplementary Problem 1: Cached single-task retrieval (TTL: 60s)
+router.get('/:id', cacheMiddleware(60), taskController.getTaskById);
 
 // PUT /api/tasks/:id - Update task (invalidates cache)
 router.put('/:id', validateTaskInput, taskController.updateTask);
